@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>오늘의 단어</title>
+<style>
+*{box-sizing:border-box;margin:0}
+body{font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:#f5f5f5;color:#1a1a1a;display:flex;justify-content:center}
+.app{width:100%;max-width:420px;min-height:100vh;background:#fff;display:flex;flex-direction:column}
+header{background:#FEE500;color:#3C1E1E;text-align:center;padding:14px;font-size:19px;font-weight:700}
+.date{text-align:center;color:#888;font-size:13px;margin:12px 0}
+.board{display:grid;gap:6px;padding:0 16px;margin:0 auto;width:100%}
+.row{display:grid;gap:6px}
+.tile{aspect-ratio:1;border:2px solid #D3D6DA;border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.tile.f{border-color:#888}
+.g{background:#6AAA64!important;border-color:#6AAA64!important;color:#fff!important}
+.y{background:#C9B458!important;border-color:#C9B458!important;color:#fff!important}
+.x{background:#787C7E!important;border-color:#787C7E!important;color:#fff!important}
+.status{text-align:center;font-weight:700;color:#3C1E1E;margin:14px 0;min-height:22px}
+.kb{margin-top:auto;padding:8px 4px 16px}
+.kr{display:flex;justify-content:center;gap:4px;margin-bottom:6px}
+.k{flex:0 1 38px;height:52px;border:0;border-radius:4px;background:#D3D6DA;font-size:17px;font-weight:700;color:#1a1a1a;touch-action:manipulation}
+.k.w{flex:0 1 56px;font-size:13px}
+.btn{display:block;width:calc(100% - 32px);margin:8px auto;padding:13px;border:0;border-radius:8px;background:#FEE500;color:#3C1E1E;font-size:16px;font-weight:700}
+.src{text-align:center;font-size:11px;color:#aaa;margin:6px 0}
+.maker{padding:20px 16px}
+.maker label{display:block;font-size:14px;margin:14px 0 6px;color:#555}
+.maker input{width:100%;padding:12px;font-size:17px;border:1px solid #ccc;border-radius:8px}
+.out{margin-top:16px;padding:12px;background:#f7f7f7;border-radius:8px;word-break:break-all;font-size:14px;line-height:1.7}
+.toast{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;transition:.2s;pointer-events:none}
+.toast.on{opacity:1}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>오늘의 단어</header>
+
+  <div id="game" class="hidden">
+    <div class="date" id="date"></div>
+    <div class="board" id="board"></div>
+    <div class="status" id="status"></div>
+    <button class="btn hidden" id="share">결과 공유하기</button>
+    <div class="src">출처: 국립국어원 우리말샘</div>
+  </div>
+
+  <div id="maker" class="maker hidden">
+    <label>정답 단어 (한글)</label>
+    <input id="mw" placeholder="예: 라이벌" autocomplete="off">
+    <label>날짜</label>
+    <input id="md" type="date">
+    <button class="btn" style="width:100%;margin:16px 0 0" id="mk">문제 링크 만들기</button>
+    <div class="out hidden" id="out"></div>
+  </div>
+
+  <div class="kb hidden" id="kb"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 자모 분리 =====
+const CHO = [...'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ'];
+const JUNG = [...'ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ'];
+const JONG = ['', ...'ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ'];
+const SPLIT = {
+  'ㄲ':'ㄱㄱ','ㄸ':'ㄷㄷ','ㅃ':'ㅂㅂ','ㅆ':'ㅅㅅ','ㅉ':'ㅈㅈ',
+  'ㅐ':'ㅏㅣ','ㅒ':'ㅑㅣ','ㅔ':'ㅓㅣ','ㅖ':'ㅕㅣ','ㅘ':'ㅗㅏ','ㅙ':'ㅗㅏㅣ','ㅚ':'ㅗㅣ',
+  'ㅝ':'ㅜㅓ','ㅞ':'ㅜㅓㅣ','ㅟ':'ㅜㅣ','ㅢ':'ㅡㅣ',
+  'ㄳ':'ㄱㅅ','ㄵ':'ㄴㅈ','ㄶ':'ㄴㅎ','ㄺ':'ㄹㄱ','ㄻ':'ㄹㅁ','ㄼ':'ㄹㅂ','ㄽ':'ㄹㅅ',
+  'ㄾ':'ㄹㅌ','ㄿ':'ㄹㅍ','ㅀ':'ㄹㅎ','ㅄ':'ㅂㅅ'
+};
+const sp = j => [...(SPLIT[j] || j)];
+
+function toJamo(w) {
+  const o = [];
+  for (const ch of w) {
+    const c = ch.charCodeAt(0) - 0xAC00;
+    if (c < 0 || c > 11171) return null;
+    o.push(...sp(CHO[Math.floor(c / 588)]), ...sp(JUNG[Math.floor(c % 588 / 28)]));
+    if (c % 28) o.push(...sp(JONG[c % 28]));
+  }
+  return o;
+}
+
+// ===== 문제 코드 인코딩/디코딩 (62진법) =====
+const B = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+const en = (n, l) => { let s = ''; for (let i = 0; i < l; i++) { s = B[n % 62] + s; n = Math.floor(n / 62); } return s; };
+const de = s => { let n = 0; for (const c of s) { const i = B.indexOf(c); if (i < 0) return NaN; n = n * 62 + i; } return n; };
+const E0 = Date.UTC(2025, 0, 1), S = 11172;
+const dayOf = str => { const [y, m, d] = str.split('-').map(Number); return Math.round((Date.UTC(y, m - 1, d) - E0) / 864e5); };
+const dateOf = n => { const t = new Date(E0 + n * 864e5); return `${t.getUTCFullYear()}년 ${t.getUTCMonth() + 1}월 ${t.getUTCDate()}일`; };
+
+function encode(word, dateStr) {
+  const j = toJamo(word), day = dayOf(dateStr);
+  if (!j || j.length > 61 || !(day >= 0 && day <= 3843)) return null;
+  let sum = j.length + day, body = '';
+  [...word].forEach((ch, i) => {
+    const c = ch.charCodeAt(0) - 0xAC00;
+    sum += c;
+    body += en((c + 1237 * (i + 1) + 97 * day) % S, 3);
+  });
+  return en(j.length, 1) + en(day, 2) + body + en(sum % 62, 1);
+}
+
+function decode(q) {
+  if (!q || q.length < 7 || (q.length - 4) % 3) return null;
+  const len = de(q[0]), day = de(q.slice(1, 3));
+  if (isNaN(len) || isNaN(day)) return null;
+  let w = '', sum = len + day;
+  for (let i = 0; i < (q.length - 4) / 3; i++) {
+    const v = de(q.substr(3 + i * 3, 3));
+    if (isNaN(v) || v >= S) return null;
+    const c = (((v - 1237 * (i + 1) - 97 * day) % S) + S) % S;
+    sum += c;
+    w += String.fromCharCode(0xAC00 + c);
+  }
+  if (de(q.slice(-1)) !== sum % 62) return null;
+  const j = toJamo(w);
+  if (!j || j.length !== len) return null;
+  return { word: w, jamo: j, day };
+}
+
+// ===== 공통 유틸 =====
+const $ = id => document.getElementById(id);
+
+function toast(m) {
+  const t = $('toast');
+  t.textContent = m;
+  t.classList.add('on');
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('on'), 1800);
+}
+
+function copy(t, msg) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(t)
+      .then(() => toast(msg || '복사했어요'))
+      .catch(() => prompt('복사해 주세요', t));
+  } else {
+    prompt('복사해 주세요', t);
+  }
+}
+
+// ===== 게임 상태 =====
+const KB = [
+  [...'ㅂㅈㄷㄱㅅㅛㅕㅑ'],
+  [...'ㅁㄴㅇㄹㅎㅗㅓㅏㅣ'],
+  ['입력', ...'ㅋㅌㅊㅍㅠㅜㅡ', '지우기']
+];
+const KEYS = new Set(KB.flat().filter(k => k.length === 1));
+const QW = {
+  q:'ㅂ', w:'ㅈ', e:'ㄷ', r:'ㄱ', t:'ㅅ', y:'ㅛ', u:'ㅕ', i:'ㅑ',
+  a:'ㅁ', s:'ㄴ', d:'ㅇ', f:'ㄹ', g:'ㅎ', h:'ㅗ', j:'ㅓ', k:'ㅏ', l:'ㅣ',
+  z:'ㅋ', x:'ㅌ', c:'ㅊ', v:'ㅍ', b:'ㅠ', n:'ㅜ', m:'ㅡ'
+};
+const MAX = 5, RANK = { x: 1, y: 2, g: 3 };
+let P = null, N = 0, rows = [], cur = [], done = false, win = false;
+let tiles = [], keyEl = {}, keyState = {};
+let DICT = null, DICT_OFF = false;
+const q = new URLSearchParams(location.search).get('q');
+const SKEY = 'kordle_' + q;
+
+// ===== 사전 불러오기 =====
+function loadDict() {
+  fetch(`dict/${N}.txt`)
+    .then(r => { if (!r.ok) throw 0; return r.text(); })
+    .then(t => {
+      const s = new Set([P.jamo.join('')]);
+      t.split('\n').forEach(w => {
+        const j = toJamo(w.trim());
+        if (j && j.length === N) s.add(j.join(''));
+      });
+      DICT = s;
+    })
+    .catch(() => { DICT_OFF = true; toast('사전 없이 진행해요'); });
+}
+
+// ===== 출제 화면 =====
+function showMaker() {
+  $('maker').classList.remove('hidden');
+  const t = new Date(), p = n => String(n).padStart(2, '0');
+  $('md').value = `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())}`;
+  $('mk').onclick = () => {
+    const w = $('mw').value.trim();
+    if (!/^[가-힣]+$/.test(w)) { toast('한글 단어만 입력해 주세요'); return; }
+    const code = encode(w, $('md').value);
+    if (!code) { toast('단어나 날짜를 확인해 주세요'); return; }
+    const link = location.origin + location.pathname + '?q=' + code;
+    const o = $('out');
+    o.classList.remove('hidden');
+    o.innerHTML = `자모 ${toJamo(w).length}개 · 코드 <b>${code}</b><br><a href="${link}">${link}</a>` +
+      `<button class="btn" style="width:100%;margin:10px 0 0" id="cp">링크 복사</button>`;
+    $('cp').onclick = () => copy(link, '링크를 복사했어요');
+  };
+}
+
+// ===== 채점 =====
+function score(g) {
+  const a = P.jamo, res = Array(N).fill('x'), cnt = {};
+  for (let i = 0; i < N; i++) {
+    if (g[i] === a[i]) res[i] = 'g';
+    else cnt[a[i]] = (cnt[a[i]] || 0) + 1;
+  }
+  for (let i = 0; i < N; i++) {
+    if (res[i] !== 'g' && cnt[g[i]] > 0) { res[i] = 'y'; cnt[g[i]]--; }
+  }
+  return res;
+}
+
+function commit(g, save) {
+  const res = score(g);
+  rows.push({ g: [...g], res });
+  g.forEach((j, i) => {
+    if ((RANK[res[i]] || 0) > (RANK[keyState[j]] || 0)) keyState[j] = res[i];
+  });
+  if (res.every(v => v === 'g')) { done = true; win = true; }
+  else if (rows.length >= MAX) done = true;
+  if (save) {
+    try { localStorage.setItem(SKEY, JSON.stringify({ rows: rows.map(r => r.g) })); } catch (e) {}
+  }
+}
+
+// ===== 입력 처리 =====
+function press(k) {
+  if (done) return;
+  if (k === '입력') {
+    if (cur.length < N) { toast(`자모 ${N}개를 모두 입력해 주세요`); return; }
+    if (!DICT_OFF) {
+      if (!DICT) { toast('사전을 불러오는 중이에요'); return; }
+      if (!DICT.has(cur.join(''))) { toast('사전에 없는 단어예요'); return; }
+    }
+    commit(cur, true);
+    cur = [];
+  } else if (k === '지우기') {
+    cur.pop();
+  } else if (cur.length < N) {
+    cur.push(k);
+  }
+  render();
+}
+
+// ===== 화면 그리기 =====
+function render() {
+  for (let r = 0; r < MAX; r++) {
+    for (let c = 0; c < N; c++) {
+      const t = tiles[r][c];
+      if (r < rows.length) {
+        t.textContent = rows[r].g[c];
+        t.className = 'tile ' + rows[r].res[c];
+      } else if (r === rows.length && !done) {
+        t.textContent = cur[c] || '';
+        t.className = 'tile' + (cur[c] ? ' f' : '');
+      } else {
+        t.textContent = '';
+        t.className = 'tile';
+      }
+    }
+  }
+  for (const k in keyEl) {
+    keyEl[k].className = 'k' + (k.length > 1 ? ' w' : '') + (keyState[k] ? ' ' + keyState[k] : '');
+  }
+  $('status').textContent = done
+    ? (win ? `${rows.length}/${MAX} 정답! (${P.word})` : `아쉬워요, 정답은 '${P.word}'`)
+    : `${rows.length}/${MAX} 도전 중`;
+  $('share').classList.toggle('hidden', !done);
+}
+
+// ===== 게임 시작 =====
+function startGame() {
+  N = P.jamo.length;
+  loadDict();
+  $('game').classList.remove('hidden');
+  $('kb').classList.remove('hidden');
+  $('date').textContent = dateOf(P.day);
+
+  // 보드 만들기
+  const board = $('board');
+  board.style.maxWidth = Math.min(N * 54 + 32, 420) + 'px';
+  for (let r = 0; r < MAX; r++) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.style.gridTemplateColumns = `repeat(${N},1fr)`;
+    tiles[r] = [];
+    for (let c = 0; c < N; c++) {
+      const t = document.createElement('div');
+      t.className = 'tile';
+      t.style.fontSize = (N > 8 ? 16 : 20) + 'px';
+      row.appendChild(t);
+      tiles[r].push(t);
+    }
+    board.appendChild(row);
+  }
+
+  // 화면 키보드 만들기
+  KB.forEach(line => {
+    const kr = document.createElement('div');
+    kr.className = 'kr';
+    line.forEach(k => {
+      const b = document.createElement('button');
+      b.textContent = k;
+      b.onclick = () => press(k);
+      kr.appendChild(b);
+      keyEl[k] = b;
+    });
+    $('kb').appendChild(kr);
+  });
+
+  // 이전 진행 기록 불러오기
+  try {
+    const s = JSON.parse(localStorage.getItem(SKEY));
+    if (s && Array.isArray(s.rows)) {
+      s.rows.forEach(g => { if (!done && g.length === N) commit(g, false); });
+    }
+  } catch (e) {}
+
+  // 결과 공유
+  $('share').onclick = () => {
+    const em = { g: '🟩', y: '🟨', x: '⬜' };
+    const lines = rows.map(r => r.res.map(v => em[v]).join('')).join('\n');
+    const text = `오늘의 단어 ${dateOf(P.day)} ${win ? rows.length : 'X'}/${MAX}\n${lines}\n${location.href}`;
+    if (navigator.share) navigator.share({ text }).catch(() => {});
+    else copy(text, '결과를 복사했어요');
+  };
+
+  // PC 키보드 입력 (영문 자판 → 한글 자모)
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') press('입력');
+    else if (e.key === 'Backspace') press('지우기');
+    else {
+      const k = QW[e.key.toLowerCase()] || e.key;
+      if (KEYS.has(k)) press(k);
+    }
+  });
+
+  render();
+}
+
+// ===== 시작점 =====
+if (q) {
+  P = decode(q);
+  if (P) startGame();
+  else { showMaker(); toast('잘못된 문제 코드예요'); }
+} else {
+  showMaker();
+}
+</script>
+</body>
+</html>
