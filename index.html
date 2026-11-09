@@ -215,9 +215,22 @@ function showMaker() {
   $('maker').classList.remove('hidden');
   const t = new Date(), p = n => String(n).padStart(2, '0');
   $('md').value = `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())}`;
-  $('mk').onclick = () => {
+  // 결과: true(사전에 있음) / false(사전에 없음) / null(사전을 못 읽음 → 제한 없이 허용)
+  const cache = {};
+  const inDict = w => {
+    const n = toJamo(w).length;
+    cache[n] = cache[n] || fetch(`dict/${n}.txt`)
+      .then(r => { if (!r.ok) throw 0; return r.text(); })
+      .then(t => new Set(t.split(/\r?\n/).map(x => x.trim())))
+      .catch(() => { delete cache[n]; return null; });
+    return cache[n].then(set => set ? set.has(w) : null);
+  };
+  $('mk').onclick = async () => {
     const w = $('mw').value.trim();
     if (!/^[가-힣]+$/.test(w)) { toast('한글 단어만 입력해 주세요'); return; }
+    const ok = await inDict(w);
+    if (ok === false) { toast('사전에 없는 단어예요'); return; }
+    if (ok === null) toast('사전 없이 출제해요');
     const code = encode(w, $('md').value);
     if (!code) { toast('단어나 날짜를 확인해 주세요'); return; }
     const link = location.origin + location.pathname + '?q=' + code;
