@@ -319,18 +319,8 @@ function startGame() {
     const em = { g: '🟩', y: '🟨', x: '⬜' };
     const lines = rows.map(r => r.res.map(v => em[v]).join('')).join('\n');
     const text = `오늘의 단어 ${dateOf(P.day)} ${win ? rows.length : 'X'}/${MAX}\n${lines}\n${location.href}`;
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-      || matchMedia('(pointer:coarse)').matches;
-
-    if (isMobile && navigator.share) {
-      // 휴대폰: 공유 창 (카톡 등 선택)
-      navigator.share({ text }).catch(e => {
-        if (e.name !== 'AbortError') copy(text, '결과를 복사했어요');
-      });
-    } else {
-      // PC: 클립보드에 복사
-      copy(text, '결과를 복사했어요');
-    }
+    if (navigator.share) navigator.share({ text }).catch(() => {});
+    else copy(text, '결과를 복사했어요');
   };
 
   // PC 키보드 입력 (영문 자판 → 한글 자모)
