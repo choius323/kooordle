@@ -288,29 +288,33 @@ function press(k) {
 }
 
 // ===== 화면 그리기 =====
+// 값이 실제로 바뀔 때만 DOM을 건드림.
+// 광고 차단 확장(유니콘 등)은 DOM이 바뀔 때마다 페이지를 검사하므로, 변경 횟수가 곧 입력 딜레이가 됨.
+function setEl(el, text, cls) {
+  if (el._t !== text) { el.textContent = text; el._t = text; }
+  if (el._c !== cls) { el.className = cls; el._c = cls; }
+}
+
 function render() {
   for (let r = 0; r < MAX; r++) {
     for (let c = 0; c < N; c++) {
       const t = tiles[r][c];
-      if (r < rows.length) {
-        t.textContent = rows[r].g[c];
-        t.className = 'tile ' + rows[r].res[c];
-      } else if (r === rows.length && !done) {
-        t.textContent = cur[c] || '';
-        t.className = 'tile' + (cur[c] ? ' f' : '');
-      } else {
-        t.textContent = '';
-        t.className = 'tile';
-      }
+      if (r < rows.length) setEl(t, rows[r].g[c], 'tile ' + rows[r].res[c]);
+      else if (r === rows.length && !done) setEl(t, cur[c] || '', 'tile' + (cur[c] ? ' f' : ''));
+      else setEl(t, '', 'tile');
     }
   }
   for (const k in keyEl) {
-    keyEl[k].className = 'k' + (k === '입력' ? ' enter' : '') + (keyState[k] ? ' ' + keyState[k] : '');
+    const b = keyEl[k];
+    const cls = 'k' + (k === '입력' ? ' enter' : '') + (keyState[k] ? ' ' + keyState[k] : '');
+    if (b._c !== cls) { b.className = cls; b._c = cls; }
   }
-  $('status').textContent = done
+  const st = $('status');
+  setEl(st, done
     ? (win ? `${rows.length}/${MAX} 정답! (${P.word})` : `아쉬워요, 정답은 '${P.word}'`)
-    : `${rows.length}/${MAX} 도전 중`;
-  $('share').classList.toggle('hidden', !done);
+    : `${rows.length}/${MAX} 도전 중`, st.className);
+  const sh = $('share');
+  if (sh.classList.contains('hidden') === done) sh.classList.toggle('hidden', !done);
 }
 
 // ===== 게임 시작 =====
@@ -348,7 +352,9 @@ function startGame() {
       b.className = 'k' + (k === '입력' ? ' enter' : '');
       b.textContent = LABEL[k] || k;
       if (LABEL[k]) b.setAttribute('aria-label', k);
-      b.onclick = () => press(k);
+      // 손가락이 닿는 순간 입력(click은 손을 뗀 뒤에야 발생). 키보드 접근(Enter/Space)은 click으로 처리
+      b.onpointerdown = e => { if (e.button === 0) { e.preventDefault(); press(k); } };
+      b.onclick = e => { if (e.detail === 0) press(k); };
       kr.appendChild(b);
       keyEl[k] = b;
     });
