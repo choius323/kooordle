@@ -20,6 +20,8 @@
 body{font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--fg);display:flex;justify-content:center}
 .app{width:100%;max-width:420px;min-height:100vh;background:var(--card);display:flex;flex-direction:column}
 header{position:relative;background:var(--head);color:var(--on-head);text-align:center;padding:14px;font-size:19px;font-weight:700}
+header a,[data-theme=dark] header a{color:inherit;text-decoration:none}
+.back{position:absolute;left:6px;top:50%;transform:translateY(-50%);width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:30px;line-height:1;padding-bottom:3px}
 .theme{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;border-radius:50%;background:transparent;font-size:18px;line-height:1;cursor:pointer}
 .date{text-align:center;color:var(--sub);font-size:13px;margin:12px 0}
 .board{display:grid;gap:6px;padding:0 16px;margin:0 auto;width:100%}
@@ -57,7 +59,7 @@ header{position:relative;background:var(--head);color:var(--on-head);text-align:
 </head>
 <body>
 <div class="app">
-  <header>오늘의 단어<button class="theme" id="theme" aria-label="다크 모드 전환"></button></header>
+  <header><a class="back hidden" id="back" href="?" aria-label="문제 출제 화면으로">‹</a><a class="title" href="?">오늘의 단어</a><button class="theme" id="theme" aria-label="다크 모드 전환"></button></header>
 
   <div id="game" class="hidden">
     <div class="date" id="date"></div>
@@ -318,6 +320,7 @@ function render() {
 
 // ===== 게임 시작 =====
 function startGame() {
+  $('back').classList.remove('hidden');
   N = P.jamo.length;
   loadDict();
   $('game').classList.remove('hidden');
