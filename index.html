@@ -8,7 +8,7 @@
 // 화면이 그려지기 전에 테마를 정해서 깜빡임을 막음
 (function () {
   let t = null;
-  try { t = localStorage.getItem('kordle_theme'); } catch (e) {}
+  try { t = localStorage.getItem('kooordle_theme') || localStorage.getItem('kordle_theme'); } catch (e) {} // 예전 이름(kordle_) 기록도 읽음
   if (t !== 'dark' && t !== 'light') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   document.documentElement.dataset.theme = t;
 })();
@@ -152,7 +152,7 @@ const $ = id => document.getElementById(id);
 function setTheme(t, save) {
   document.documentElement.dataset.theme = t;
   $('theme').textContent = t === 'dark' ? '☀️' : '🌙';
-  if (save) { try { localStorage.setItem('kordle_theme', t); } catch (e) {} }
+  if (save) { try { localStorage.setItem('kooordle_theme', t); } catch (e) {} }
 }
 setTheme(document.documentElement.dataset.theme, false);
 $('theme').onclick = () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark', true);
@@ -194,7 +194,7 @@ let P = null, N = 0, rows = [], cur = [], done = false, win = false;
 let tiles = [], keyEl = {}, keyState = {};
 let DICT = null, DICT_OFF = false;
 const q = new URLSearchParams(location.search).get('q');
-const SKEY = 'kordle_' + q;
+const SKEY = 'kooordle_' + q, OLD_SKEY = 'kordle_' + q; // 예전 이름 기록도 읽음
 
 // ===== 사전 불러오기 =====
 function loadDict() {
@@ -365,7 +365,7 @@ function startGame() {
 
   // 이전 진행 기록 불러오기
   try {
-    const s = JSON.parse(localStorage.getItem(SKEY));
+    const s = JSON.parse(localStorage.getItem(SKEY) || localStorage.getItem(OLD_SKEY));
     if (s && Array.isArray(s.rows)) {
       s.rows.forEach(g => { if (!done && g.length === N) commit(g, false); });
     }
