@@ -352,9 +352,7 @@ function startGame() {
       b.className = 'k' + (k === '입력' ? ' enter' : '');
       b.textContent = LABEL[k] || k;
       if (LABEL[k]) b.setAttribute('aria-label', k);
-      // 손가락이 닿는 순간 입력(click은 손을 뗀 뒤에야 발생). 키보드 접근(Enter/Space)은 click으로 처리
-      b.onpointerdown = e => { if (e.button === 0) { e.preventDefault(); press(k); } };
-      b.onclick = e => { if (e.detail === 0) press(k); };
+      b.onclick = () => press(k);
       kr.appendChild(b);
       keyEl[k] = b;
     });
