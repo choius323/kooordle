@@ -15,7 +15,7 @@
 </script>
 <style>
 :root{--accent:#3B6FE0;--on-accent:#fff;--head:#3B6FE0;--on-head:#fff;--bg:#f5f5f5;--card:#fff;--fg:#1a1a1a;--sub:#888;--faint:#aaa;--label:#555;--line:#D3D6DA;--line-f:#888;--key:#fff;--kbbg:#EDEDEF;--box:#f7f7f7;--input:#ccc;--status:#2A4FA8;--toast:#333;color-scheme:light}
-[data-theme=dark]{--accent:#4A78E0;--on-accent:#fff;--head:#1A2440;--on-head:#A9C0FF;--bg:#0e0e0f;--card:#121213;--fg:#e8e8e8;--sub:#9a9a9a;--faint:#6f6f6f;--label:#b5b5b5;--line:#3A3A3C;--line-f:#7a7a7c;--key:#8A8C8F;--kbbg:#1F1F21;--box:#1e1e20;--input:#3A3A3C;--status:#A9C0FF;--toast:#e8e8e8;color-scheme:dark}
+[data-theme=dark]{--accent:#4A78E0;--on-accent:#fff;--head:#1A2440;--on-head:#A9C0FF;--bg:#0e0e0f;--card:#121213;--fg:#e8e8e8;--sub:#9a9a9a;--faint:#6f6f6f;--label:#b5b5b5;--line:#3A3A3C;--line-f:#7a7a7c;--key:#4A4B4F;--kbbg:#1F1F21;--box:#1e1e20;--input:#3A3A3C;--status:#A9C0FF;--toast:#e8e8e8;color-scheme:dark}
 *{box-sizing:border-box;margin:0}
 body{font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--fg);display:flex;justify-content:center}
 .app{width:100%;max-width:420px;min-height:100vh;background:var(--card);display:flex;flex-direction:column}
@@ -40,9 +40,8 @@ header{position:relative;background:var(--head);color:var(--on-head);text-align:
 .k{flex:0 0 calc((100% - 48px) / 9);min-width:0;padding:0;height:50px;border:0;border-radius:8px;background:var(--key);font-size:18px;font-weight:700;color:var(--fg);touch-action:manipulation;box-shadow:0 1px 0 rgba(0,0,0,.12)}
 .k.enter{flex:1 1 auto;height:50px;margin-top:4px;border-radius:10px;font-size:16px;background:var(--accent);color:var(--on-accent)}
 .kr:last-child{margin-bottom:0}
-/* 키보드의 '없음' 키는 배경에 묻히도록 흐리게 해서 아직 안 쓴 키와 확실히 구분 */
-.k.x{background:#B8BABD!important;color:#F4F4F5!important;box-shadow:none}
-[data-theme=dark] .k.x{background:#2A2A2C!important;color:#5E5E62!important;box-shadow:none}
+/* 키보드의 '없음' 키: 두 모드 모두 원래 키를 흐리게 해서 배경에 묻히게 함 (흐려짐 = 쓸 일 없음) */
+.k.x{background:var(--key)!important;color:var(--fg)!important;opacity:.28;box-shadow:none}
 .btn{display:block;width:calc(100% - 32px);margin:8px auto;padding:13px;border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:700}
 .src{text-align:center;font-size:11px;color:var(--faint);margin:6px 0}
 .maker{padding:20px 16px}
@@ -352,7 +351,9 @@ function startGame() {
       b.className = 'k' + (k === '입력' ? ' enter' : '');
       b.textContent = LABEL[k] || k;
       if (LABEL[k]) b.setAttribute('aria-label', k);
-      b.onclick = () => press(k);
+      // 손가락이 닿는 순간 입력(click은 손을 뗀 뒤에야 발생). 키보드 접근(Enter/Space)은 click으로 처리
+      b.onpointerdown = e => { if (e.button === 0) { e.preventDefault(); press(k); } };
+      b.onclick = e => { if (e.detail === 0) press(k); };
       kr.appendChild(b);
       keyEl[k] = b;
     });
