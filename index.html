@@ -45,11 +45,14 @@ header a,[data-theme=dark] header a{color:inherit;text-decoration:none}
 /* 키보드의 '없음' 키: 두 모드 모두 원래 키를 흐리게 해서 배경에 묻히게 함 (흐려짐 = 쓸 일 없음) */
 .k.x{background:var(--key)!important;color:var(--fg)!important;opacity:.28;box-shadow:none}
 .btn{display:block;width:calc(100% - 32px);margin:8px auto;padding:13px;border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:700}
-.btn.alt{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
-[data-theme=dark] .btn.alt{color:#8ab4f8;box-shadow:inset 0 0 0 2px #8ab4f8}
 .src{text-align:center;font-size:11px;color:var(--faint);margin:6px 0}
 .maker{padding:20px 16px}
 .maker label{display:block;font-size:14px;margin:14px 0 6px;color:var(--label)}
+.maker>label:first-child{margin-top:0}
+.card{margin-top:18px;padding:16px;border:1px solid var(--line);border-radius:12px}
+.card h2{font-size:17px}
+.card .desc{margin-top:4px;font-size:13px;line-height:1.5;color:var(--sub)}
+.card .btn{width:100%;margin:14px 0 0}
 .maker input,.maker select{width:100%;padding:12px;font-size:17px;border:1px solid var(--input);border-radius:8px;background:var(--card);color:var(--fg)}
 /* 날짜 칸: 브라우저·OS마다 표기가 달라서(예: Windows 형식의 빈 요일 괄호) 기본 글자는 숨기고 직접 그린 글자를 겹쳐 보여 줌 */
 .datebox{position:relative}
@@ -76,14 +79,24 @@ header a,[data-theme=dark] header a{color:inherit;text-decoration:none}
   </div>
 
   <div id="maker" class="maker hidden">
-    <label>정답 단어 (한글)</label>
-    <input id="mw" placeholder="예: 라이벌" autocomplete="off">
-    <label>날짜</label>
+    <label for="md">날짜</label>
     <div class="datebox"><input id="md" type="date"><span id="mdv" aria-hidden="true"></span></div>
-    <button class="btn" style="width:100%;margin:16px 0 0" id="mk">문제 링크 만들기</button>
-    <label>랜덤 출제 자모 수</label>
-    <select id="rn"><option value="">아무거나</option></select>
-    <button class="btn alt" style="width:100%;margin:10px 0 0" id="rnd">랜덤 문제 만들기</button>
+
+    <section class="card">
+      <h2>✏️ 직접 출제</h2>
+      <p class="desc">정답 단어를 직접 정해요.</p>
+      <label for="mw">정답 단어 (한글)</label>
+      <input id="mw" placeholder="예: 라이벌" autocomplete="off">
+      <button class="btn" id="mk">문제 링크 만들기</button>
+    </section>
+
+    <section class="card">
+      <h2>🎲 랜덤 출제</h2>
+      <p class="desc">정답 목록에서 무작위로 골라요. 출제자도 같이 풀 수 있게 정답은 보여 주지 않아요.</p>
+      <label for="rn">자모 수</label>
+      <select id="rn"><option value="">아무거나</option></select>
+      <button class="btn" id="rnd">랜덤 문제 만들기</button>
+    </section>
     <div class="out hidden" id="out"></div>
   </div>
 
@@ -253,7 +266,7 @@ function showMaker() {
     const link = location.origin + location.pathname + '?q=' + code;
     const o = $('out');
     o.classList.remove('hidden');
-    o.innerHTML = `${hide ? '랜덤 단어 · ' : ''}자모 ${toJamo(w).length}개 · 코드 <b>${code}</b><br><a href="${link}">${link}</a>` +
+    o.innerHTML = `${hide ? '🎲 랜덤 출제' : '✏️ 직접 출제'} · 자모 ${toJamo(w).length}개 · 코드 <b>${code}</b><br><a href="${link}">${link}</a>` +
       `<button class="btn" style="width:100%;margin:10px 0 0" id="cp">링크 복사</button>`;
     $('cp').onclick = () => copy(link, '링크를 복사했어요');
     return true;
