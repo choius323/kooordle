@@ -45,10 +45,12 @@ header a,[data-theme=dark] header a{color:inherit;text-decoration:none}
 /* 키보드의 '없음' 키: 두 모드 모두 원래 키를 흐리게 해서 배경에 묻히게 함 (흐려짐 = 쓸 일 없음) */
 .k.x{background:var(--key)!important;color:var(--fg)!important;opacity:.28;box-shadow:none}
 .btn{display:block;width:calc(100% - 32px);margin:8px auto;padding:13px;border:0;border-radius:8px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:700}
+.btn.alt{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}
+[data-theme=dark] .btn.alt{color:#8ab4f8;box-shadow:inset 0 0 0 2px #8ab4f8}
 .src{text-align:center;font-size:11px;color:var(--faint);margin:6px 0}
 .maker{padding:20px 16px}
 .maker label{display:block;font-size:14px;margin:14px 0 6px;color:var(--label)}
-.maker input{width:100%;padding:12px;font-size:17px;border:1px solid var(--input);border-radius:8px;background:var(--card);color:var(--fg)}
+.maker input,.maker select{width:100%;padding:12px;font-size:17px;border:1px solid var(--input);border-radius:8px;background:var(--card);color:var(--fg)}
 .maker input[type=date]{color:var(--label)}
 [data-theme=dark] .maker input[type=date]::-webkit-calendar-picker-indicator{opacity:.6}
 .out{margin-top:16px;padding:12px;background:var(--box);border-radius:8px;word-break:break-all;font-size:14px;line-height:1.7}
@@ -66,7 +68,7 @@ header a,[data-theme=dark] header a{color:inherit;text-decoration:none}
     <div class="board" id="board"></div>
     <div class="status" id="status"></div>
     <button class="btn hidden" id="share">결과 공유하기</button>
-    <div class="src">출처: 국립국어원 우리말샘</div>
+    <div class="src">출처: 국립국어원 우리말샘·한국어기초사전</div>
   </div>
 
   <div id="maker" class="maker hidden">
@@ -75,6 +77,9 @@ header a,[data-theme=dark] header a{color:inherit;text-decoration:none}
     <label>날짜</label>
     <input id="md" type="date">
     <button class="btn" style="width:100%;margin:16px 0 0" id="mk">문제 링크 만들기</button>
+    <label>랜덤 출제 자모 수</label>
+    <select id="rn"><option value="">아무거나</option></select>
+    <button class="btn alt" style="width:100%;margin:10px 0 0" id="rnd">랜덤 문제 만들기</button>
     <div class="out hidden" id="out"></div>
   </div>
 
@@ -226,21 +231,68 @@ function showMaker() {
       .catch(() => { delete cache[n]; return null; });
     return cache[n].then(set => set ? set.has(w) : null);
   };
+  // 링크를 만들어 보여 줌. hide가 참이면 랜덤 문제라 단어를 숨김
+  const makeLink = (w, hide) => {
+    const code = encode(w, $('md').value);
+    if (!code) { toast('단어나 날짜를 확인해 주세요'); return false; }
+    const link = location.origin + location.pathname + '?q=' + code;
+    const o = $('out');
+    o.classList.remove('hidden');
+    o.innerHTML = `${hide ? '랜덤 단어 · ' : ''}자모 ${toJamo(w).length}개 · 코드 <b>${code}</b><br><a href="${link}">${link}</a>` +
+      `<button class="btn" style="width:100%;margin:10px 0 0" id="cp">링크 복사</button>`;
+    $('cp').onclick = () => copy(link, '링크를 복사했어요');
+    return true;
+  };
   $('mk').onclick = async () => {
     const w = $('mw').value.trim();
     if (!/^[가-힣]+$/.test(w)) { toast('한글 단어만 입력해 주세요'); return; }
     const ok = await inDict(w);
     if (ok === false) { toast('사전에 없는 단어예요'); return; }
     if (ok === null) toast('사전 없이 출제해요');
-    const code = encode(w, $('md').value);
-    if (!code) { toast('단어나 날짜를 확인해 주세요'); return; }
-    const link = location.origin + location.pathname + '?q=' + code;
-    const o = $('out');
-    o.classList.remove('hidden');
-    o.innerHTML = `자모 ${toJamo(w).length}개 · 코드 <b>${code}</b><br><a href="${link}">${link}</a>` +
-      `<button class="btn" style="width:100%;margin:10px 0 0" id="cp">링크 복사</button>`;
-    $('cp').onclick = () => copy(link, '링크를 복사했어요');
+    makeLink(w, false);
   };
+  for (let n = ANS_MIN; n <= ANS_MAX; n++) $('rn').add(new Option(`${n}개`, n));
+  $('rnd').onclick = async () => {
+    const by = await loadAnswers(), n = $('rn').value;
+    const pool = n ? by[n] || [] : Object.values(by).flat();
+    if (!pool.length) { toast('정답 목록을 불러오지 못했어요'); return; }
+    // 이 브라우저에서 이미 랜덤으로 낸 단어는 빼고 뽑음.
+    // 고른 자모 수의 단어를 다 쓰면 그 자모 수의 기록만 지우고 처음부터 다시
+    let used = [];
+    try { used = JSON.parse(localStorage.getItem(USED_KEY)) || []; } catch (e) {}
+    const usedSet = new Set(used);
+    let left = pool.filter(w => !usedSet.has(w));
+    if (!left.length) {
+      const poolSet = new Set(pool);
+      used = used.filter(w => !poolSet.has(w));
+      left = pool;
+    }
+    const w = left[Math.floor(Math.random() * left.length)];
+    if (!makeLink(w, true)) return;
+    $('mw').value = '';
+    used.push(w);
+    try { localStorage.setItem(USED_KEY, JSON.stringify(used)); } catch (e) {}
+  };
+}
+
+// ===== 랜덤 출제용 정답 목록 (answers/4.txt ~ 15.txt) =====
+// 결과: { 자모 수: [단어, ...] }
+const USED_KEY = 'kooordle_used', ANS_MIN = 4, ANS_MAX = 15;
+let answersP = null;
+function loadAnswers() {
+  answersP = answersP || Promise.all(
+    Array.from({ length: ANS_MAX - ANS_MIN + 1 }, (_, i) => fetch(`answers/${i + ANS_MIN}.txt`)
+      .then(r => r.ok ? r.text() : '')
+      .catch(() => ''))
+  ).then(ts => {
+    const by = {};
+    ts.forEach((t, i) => {
+      by[i + ANS_MIN] = t.split(/\r?\n/).map(x => x.trim()).filter(x => /^[가-힣]+$/.test(x));
+    });
+    if (!Object.values(by).some(a => a.length)) answersP = null; // 실패하면 다음에 다시 시도
+    return by;
+  });
+  return answersP;
 }
 
 // ===== 채점 =====
