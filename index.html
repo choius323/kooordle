@@ -51,7 +51,11 @@ header a,[data-theme=dark] header a{color:inherit;text-decoration:none}
 .maker{padding:20px 16px}
 .maker label{display:block;font-size:14px;margin:14px 0 6px;color:var(--label)}
 .maker input,.maker select{width:100%;padding:12px;font-size:17px;border:1px solid var(--input);border-radius:8px;background:var(--card);color:var(--fg)}
-.maker input[type=date]{color:var(--label)}
+/* 날짜 칸: 브라우저·OS마다 표기가 달라서(예: Windows 형식의 빈 요일 괄호) 기본 글자는 숨기고 직접 그린 글자를 겹쳐 보여 줌 */
+.datebox{position:relative}
+.maker input[type=date]{color:transparent;min-height:50px;cursor:pointer}
+.maker input[type=date]::-webkit-datetime-edit{opacity:0}
+.datebox span{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:17px;color:var(--fg);pointer-events:none}
 [data-theme=dark] .maker input[type=date]::-webkit-calendar-picker-indicator{opacity:.6}
 .out{margin-top:16px;padding:12px;background:var(--box);border-radius:8px;word-break:break-all;font-size:14px;line-height:1.7}
 .toast{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:var(--toast);color:var(--card);padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;transition:.2s;pointer-events:none}
@@ -75,7 +79,7 @@ header a,[data-theme=dark] header a{color:inherit;text-decoration:none}
     <label>정답 단어 (한글)</label>
     <input id="mw" placeholder="예: 라이벌" autocomplete="off">
     <label>날짜</label>
-    <input id="md" type="date">
+    <div class="datebox"><input id="md" type="date"><span id="mdv" aria-hidden="true"></span></div>
     <button class="btn" style="width:100%;margin:16px 0 0" id="mk">문제 링크 만들기</button>
     <label>랜덤 출제 자모 수</label>
     <select id="rn"><option value="">아무거나</option></select>
@@ -221,6 +225,17 @@ function showMaker() {
   $('maker').classList.remove('hidden');
   const t = new Date(), p = n => String(n).padStart(2, '0');
   $('md').value = `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())}`;
+  // 날짜 표기를 모든 기기에서 '2026. 11. 13. (금)'으로 통일
+  const showDate = () => {
+    const v = $('md').value;
+    if (!v) { $('mdv').textContent = '날짜를 골라 주세요'; return; }
+    const [y, m, d] = v.split('-').map(Number);
+    $('mdv').textContent = `${y}. ${m}. ${d}. (${'일월화수목금토'[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]})`;
+  };
+  $('md').oninput = $('md').onchange = showDate;
+  // 글자를 숨겼으니 칸 아무 곳이나 누르면 달력이 열리게 함 (모바일은 원래 열림)
+  $('md').onclick = () => { try { $('md').showPicker(); } catch (e) {} };
+  showDate();
   // 결과: true(사전에 있음) / false(사전에 없음) / null(사전을 못 읽음 → 제한 없이 허용)
   const cache = {};
   const inDict = w => {
